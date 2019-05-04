@@ -324,7 +324,7 @@ decims32 div32(decims32 a, decims32 b) {
     int negat = (sign_a != sign_b);
     int expn = exp_a - exp_b;
     uint64_t quo = ((uint64_t) m_a * 10000000) / m_b;
-    while (quo > 99999999) // note: should only loop if b is subnormal
+    while (quo > 99999999 || (quo > 50000000 && expn == 47)) // note: should only loop if b is subnormal
     {
         if (expn == 47)
         {
@@ -367,5 +367,5 @@ int main(int n, char * args[]) {
     printf(" 10.0 * 0.123456e-48 = %s\n", numberAsString32(mul32(makeNumber32(-1, 0, +1), 123456)));
     printf(" 3.0e3 / 5.0 = %s\n", numberAsString32(div32(makeNumber32(3, 0, +3), makeNumber32(5, 0, 0))));
     printf(" -1.0e-48 / 0.123456e-48 = %s\n", numberAsString32(div32(makeNumber32(-1, 0, -48), 123456)));
-    printf(" -10.0 / 0.123456e-48 = %s\n", numberAsString32(div32(makeNumber32(-1, 0, +1), 123456)));
+    printf(" -3.0e-2 / 0.06e-48 = %s\n", numberAsString32(div32(makeNumber32(-3, 0, -2), 60000)));
 }
