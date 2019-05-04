@@ -110,7 +110,7 @@ decims32 makeNumber32(int units, uint32_t decimals, int expn) {
         units = expn % 3;                               // use units place for exponent offset
         expn = expn / 3;
     }
-    return (sign << 31) | (expn << 25) | (decimals + units * 10000000);
+    return (sign << 31) | (expn << 25) | (units * 10000000 + decimals);
 }
 
 int numberParts32_(decims32 num, int * expn, uint32_t * decimals)
@@ -307,7 +307,7 @@ decims32 mul32(decims32 a, decims32 b) {
             prod /= 10;
             expn += 1;
         }
-        while (expn != 0 && prod < 10000000)
+        while (expn != -48 && prod < 10000000)
         {
             prod *= 10;
             --expn;
