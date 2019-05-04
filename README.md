@@ -64,39 +64,49 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
 * __0-13__
 
   Exponent = (_exponent bits_ - 16) * 3 + most significant digit of _mantissa bits_
+  
   Mantissa = seven least significant digits of _mantissa bits_
   
   Example:
   
-  `Exponent bits: 6`
-  `Mantissa bits: 1 2345678`
+  ~~~
+  Exponent bits: 6
+  Mantissa bits: 1 2345678
+  ~~~
   
-  Exponent = -30 + 1 = -29
+  Exponent = -30 + 1 = -29\
   Mantissa = 2,345,678
+  
   Number = 2.345,678e-29
 
 * __14-49__
 
   Exponent = (_exponent bits_ - 14) / 3 - 6
+  
   Bucket = remainder of (_exponent bits_ - 14) / 3
-  Mantissa = _mantissa bits_ +
-     10,000,000 for bucket 0
-     40,000,000 for bucket 1
+  
+  Mantissa = _mantissa bits_ +\
+     10,000,000 for bucket 0\
+     40,000,000 for bucket 1\
      70,000,000 for bucket 2
 
   Example:
   
-  `Exponent bits: 36`
-  `Mantissa: 123`
+  ~~~
+  Exponent bits: 36
+  Mantissa: 123
+  ~~~
   
-  Exponent = 22 / 3 - 6 = 1
-  Bucket = 1
+  Exponent = 22 / 3 - 6 = 1\
+  Bucket = 1\
   Mantissa = 40,000,000 + 123 = 40,000,123
+  
   Number = 4.000,012,3e+1
 
 * __50-63__
 
   Exponent = (_exponent bits_ - 48) * 3 + most significant digit of _mantissa bits_
+  
   Mantissa = seven least significant digits of _mantissa bits_
 
   Same principle as range __0-13__
