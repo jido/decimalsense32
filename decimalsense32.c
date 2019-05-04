@@ -269,8 +269,8 @@ decims32 add32(decims32 a, decims32 b) {
             sign = 1;
         }
         int exp_diff = abs(exp_b - exp_a);
-        uint64_t large = (exp_a == expn) ? m_a : m_b;
-        uint64_t small = (exp_a == expn) ? m_b : m_a;
+        uint32_t large = (exp_a == expn) ? m_a : m_b;
+        uint32_t small = (exp_a == expn) ? m_b : m_a;
         if (sign_a != sign_b)
         {
             // Sum could lose precision
@@ -294,6 +294,14 @@ decims32 add32(decims32 a, decims32 b) {
     return makeNumber32_(sign, sum, expn);
 }
 
+decims32 opp32(decims32 num) {
+    return num ^ (1 << 31);
+}
+
+decims32 sub32(decims32 a, decims32 b) {
+    return add32(a, opp32(b));
+}
+
 int main(int n, char * args[]) {
     puts(numberAsString32(0x7F7D7840));  // Largest number 5...e+47
     puts(numberAsString32(0xF4240));  // Smallest normal number 1.0e-48
@@ -308,7 +316,11 @@ int main(int n, char * args[]) {
     printf("One: 0x%.8x \n", makeNumber32(+1, 0, 0));           // 0x40000000
     printf("Four: 0x%.8x \n", makeNumber32(+4, 0, 0));          // 0x42000000
     printf("Minus five dot five: 0x%.8x \n", makeNumber32(-5, 5000000, 0));    // 0xc2e4e1c0
-    puts(numberAsString32(add32(makeNumber32(+1, 0, -48), 123456)));
+    puts(numberAsString32(add32(makeNumber32(+1, 0, -47), 123456)));
+    puts(numberAsString32(add32(makeNumber32(+1, 9, 0), makeNumber32(+1, 4, 0))));
+    puts(numberAsString32(add32(makeNumber32(-1, 0, -48), 123456)));
+    puts(numberAsString32(sub32(makeNumber32(-1, 0, 0), makeNumber32(-1, 2345678, -6))));
+    puts(numberAsString32(sub32(makeNumber32(+1, 9, +4), makeNumber32(+1, 4, +4))));
 }
 
 /*
