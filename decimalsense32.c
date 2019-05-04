@@ -282,25 +282,62 @@ decims32 sub32(decims32 a, decims32 b) {
     return add32(a, opp32(b));
 }
 
+decims32 mul32(decims32 a, decims32 b) {
+    int exp_a, exp_b;
+    uint32_t m_a, m_b;
+    int sign_a = numberParts32_(a, &exp_a, &m_a);
+    int sign_b = numberParts32_(b, &exp_b, &m_b);
+    uint32_t negat = (sign_a != sign_b);
+    int expn = exp_a + exp_b;
+    if (expn < -48)
+    {
+        // Too small, return zero
+        return negat << 31;
+    }
+    else if (expn > 47)
+    {
+        // Too large, return infinity
+        return 0x7f800000 | (negat << 31);
+    }
+    else
+    {
+        uint32_t prod = ((uint64_t) m_a * m_b) / 10000000;
+        if (prod > 99999999)
+        {
+            prod /= 10;
+            expn += 1;
+        }
+        while (expn != 0 && prod < 10000000)
+        {
+            prod *= 10;
+            --expn;
+        }
+        return makeNumber32_(negat, prod, expn);
+    }
+}
+
 int main(int n, char * args[]) {
-    puts(numberAsString32(0x7F7D7840));  // Largest number 5...e+47
-    puts(numberAsString32(0xF4240));  // Smallest normal number 1.0e-48
-    puts(numberAsString32(0x1C000000));  // Smallest 8-digit precision
-    puts(numberAsString32(0x1A000000 + 29999999));  // Largest small 7-digit precision
-    puts(numberAsString32(0x00000001));  // Smallest number 1.0e-54
-    puts(numberAsString32(makeNumber32(+4, 6985430, +10)));
-    puts(numberAsString32(20000000));    // Not a number (missing number in units place)
-    puts(numberAsString32(0x7f800000));      // +∞
-    puts(numberAsString32(makeNumber32(-5, 1658240, +47)));  // -∞
+    printf("Largest number: %s\n", numberAsString32(0x7F7D7840));  // 5.0e+47
+    printf("Smallest normal: %s\n", numberAsString32(0xF4240));    // 1.0e-48
+    printf("Eight significant digits: %s\n", numberAsString32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
+    printf("Seven significant digits: %s\n", numberAsString32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
+    printf("Smallest number (1.0e-54): %s\n", numberAsString32(0x00000001));
+    printf("Number 4.698,543e10: %s\n", numberAsString32(makeNumber32(+4, 6985430, +10)));
+    printf("Invalid raw value: %s\n", numberAsString32(20000000));    // Not a number (missing number in units place)
+    printf(" +∞: %s\n", numberAsString32(0x7f800000));
+    printf(" -∞: %s\n", numberAsString32(makeNumber32(-5, 1658240, +47)));
     printf("Zero: 0x%.8x \n", makeNumber32(0, 0, -48));        // 0
     printf("One: 0x%.8x \n", makeNumber32(+1, 0, 0));           // 0x40000000
     printf("Four: 0x%.8x \n", makeNumber32(+4, 0, 0));          // 0x42000000
     printf("Minus five dot five: 0x%.8x \n", makeNumber32(-5, 5000000, 0));    // 0xc2e4e1c0
-    puts(numberAsString32(add32(makeNumber32(+1, 0, -47), 123456)));
-    puts(numberAsString32(add32(makeNumber32(+1, 9, 0), makeNumber32(+1, 4, 0))));
-    puts(numberAsString32(add32(makeNumber32(-1, 0, -48), 123456)));
-    puts(numberAsString32(sub32(makeNumber32(-1, 0, 0), makeNumber32(-1, 2345678, -6))));
-    puts(numberAsString32(sub32(makeNumber32(+1, 9, +4), makeNumber32(+1, 4, +4))));
+    printf("1.0e-47 + 0.123456e-48 = %s\n", numberAsString32(add32(makeNumber32(+1, 0, -47), 123456)));
+    printf("1.0000009 + 1.0000004 = %s\n", numberAsString32(add32(makeNumber32(+1, 9, 0), makeNumber32(+1, 4, 0))));
+    printf("-1.0e-48 + 0.123456e-48 = %s\n", numberAsString32(add32(makeNumber32(-1, 0, -48), 123456)));
+    printf("-1.0 - -1.2345678e-6 = %s\n", numberAsString32(sub32(makeNumber32(-1, 0, 0), makeNumber32(-1, 2345678, -6))));
+    printf("1.0000009e4 - 1.0000004e4 = %s\n", numberAsString32(sub32(makeNumber32(+1, 9, +4), makeNumber32(+1, 4, +4))));
+    printf("3.0e3 * 5.0 = %s\n", numberAsString32(mul32(makeNumber32(3, 0, +3), makeNumber32(5, 0, 0))));
+    printf("-1.0e-48 * 0.123456e-48 = %s\n", numberAsString32(mul32(makeNumber32(-1, 0, -48), 123456)));
+    printf("10.0 * 0.123456e-48 = %s\n", numberAsString32(mul32(makeNumber32(-1, 0, +1), 123456)));
 }
 
 /*
