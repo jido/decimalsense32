@@ -48,65 +48,6 @@
 
 typedef uint32_t decims32;
 
-char * numberAsString32(decims32 num) {
-    static char result[] = "+1.2345678e-99";
-
-    char sign = (num & 0x80000000) ? '-' : '+';
-    
-    // Getting exponent and mantissa bits
-    int16_t expn = (num >> 25) & 0x3f;
-    uint32_t mant = num & 0x1ffffff;
-    if (expn == 63 && mant == 0x1800000)
-    {
-        static char inf[] = "+Infinity";
-        inf[0] = sign;
-        return inf;
-    }
-    if (expn == 63 && mant > 25000000)
-    {
-        return "NaN";
-    }
-    if (expn > 13 && expn < 50)
-    {
-        uint16_t zexpn = expn - 14;
-        uint16_t bucket = zexpn % 3;
-        expn = zexpn / 3 - 6;
-        if (mant >= 30000000)
-        {
-            return "NaN";
-        }
-        mant += (bucket == 0) ? 10000000 :
-                (bucket == 1) ? 40000000 :
-                                70000000;
-    }
-    else
-    {
-        expn = (expn - (expn < 14 ? 16 : 48)) * 3;
-        if (mant >= 20000000)
-        {
-            expn += 2;
-            mant -= 20000000;
-        }
-        else if (mant >= 10000000)
-        {
-            expn += 1;
-            mant -= 10000000;
-        }
-        if ((expn != -48 && mant < 1000000) || mant >= 10000000)
-        {
-            return "NaN";
-        }
-        mant *= 10;
-    }
-    
-    result[0] = sign;
-    sprintf(result + 1, "%0.8u", mant);
-    memmove(result + 3, result + 2, 7);
-    result[2] = '.';
-    sprintf(result + 10, "%+d", expn);
-    return result;
-}
-
 decims32 makeNumber32_(int sign, uint32_t decimals, int expn) {
     uint32_t units;
     if (expn >= -6 && expn < 6)
@@ -203,6 +144,45 @@ int numberParts32_(decims32 num, int * expn, uint32_t * decimals)
         *decimals = mantissa * 10;
     }
     return num >> 31;
+}
+
+char * numberAsString32(decims32 num) {
+    static char result[] = "+1.2345678e-99";
+
+    // Getting exponent and mantissa bits
+    int expn;
+    uint32_t mant;
+    char sign = (numberParts32_(num, &expn, &mant) ? '-' : '+');
+    
+    if (num == 0xFF800000 || num == 0x7F800000)
+    {
+        static char inf[] = "+Infinity";
+        inf[0] = sign;
+        return inf;
+    }
+    if (expn == 47 && mant > 50000000)
+    {
+        return "NaN";
+    }
+    uint32_t mantbits = num & 0x1ffffff;
+    if (mantbits >= 30000000)
+    {
+        return "NaN";
+    }
+    if ((expn != -48 && expn < -6) || expn >= 6)
+    {
+        if (mantbits % 10000000 < 1000000)
+        {
+            return "NaN";
+        }
+    }
+    
+    result[0] = sign;
+    sprintf(result + 1, "%0.8u", mant);
+    memmove(result + 3, result + 2, 7);
+    result[2] = '.';
+    sprintf(result + 10, "%+d", expn);
+    return result;
 }
 
 uint32_t shiftDecimals32(uint32_t decimals, int amount) {
@@ -309,7 +289,7 @@ int main(int n, char * args[]) {
     puts(numberAsString32(0x1A000000 + 29999999));  // Largest small 7-digit precision
     puts(numberAsString32(0x00000001));  // Smallest number 1.0e-54
     puts(numberAsString32(makeNumber32(+4, 6985430, +10)));
-    //puts(numberAsString32(10000000000000000L));   // Not a number (over 16 digits)
+    puts(numberAsString32(20000000));    // Not a number (missing number in units place)
     puts(numberAsString32(0x7f800000));      // +∞
     puts(numberAsString32(makeNumber32(-5, 1658240, +47)));  // -∞
     printf("Zero: 0x%.8x \n", makeNumber32(0, 0, -48));        // 0
