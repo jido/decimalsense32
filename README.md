@@ -12,7 +12,7 @@ Normal number range:
 
 **1.0e-48** to **5.0e+47**
 
-(hexadecimal _F4240_ to _7E989680_)
+(hexadecimal _F4240_ to _7F7D7840_)
 
 Subnormal number range (non-zero):
 
@@ -85,10 +85,10 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   
   Bucket = remainder of (_exponent bits_ - 14) / 3
   
-  Mantissa = _mantissa bits_ +\
-     10,000,000 for bucket 0\
-     40,000,000 for bucket 1\
-     70,000,000 for bucket 2
+  Mantissa = _mantissa bits_ +
+  -   10,000,000 for bucket 0
+  -   40,000,000 for bucket 1
+  -   70,000,000 for bucket 2
 
   Example:
   
