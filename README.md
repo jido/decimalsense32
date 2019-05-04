@@ -59,7 +59,7 @@ Normal numbers
 
 The exponent bits dictate how to calculate the exponent and the mantissa.
 
-#### Exponent ranges
+### Exponent ranges
 
 * __0-13__
 
@@ -94,7 +94,7 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   
   ~~~
   Exponent bits: 36
-  Mantissa: 123
+  Mantissa bits: 123
   ~~~
   
   Exponent = 22 / 3 - 6 = 1\
@@ -109,7 +109,7 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   
   Mantissa = seven least significant digits of _mantissa bits_
 
-  Same principle as range __0-13__
+  Same principles as range __0-13__
  
 Subnormal numbers
 -----------------
