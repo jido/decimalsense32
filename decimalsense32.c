@@ -107,8 +107,41 @@ char * numberAsString32(decims32 num) {
     return result;
 }
 
+decims32 makeNumber32_(int sign, uint32_t decimals, int expn) {
+    uint32_t units;
+    if (expn >= -6 && expn < 6)
+    {
+        units = decimals / 10000000;
+        decimals = decimals % 10000000;
+        // Place 8-digit value in the appropriate bucket
+        if (units >= 7)
+        {
+            units -= 7;
+            expn = (expn + 6) * 3 + 16;
+        }
+        else if (units >= 4)
+        {
+            units -= 4;
+            expn = (expn + 6) * 3 + 15;
+        }
+        else
+        {
+            units -= 1;
+            expn = (expn + 6) * 3 + 14;
+        }
+    }
+    else
+    {
+        decimals = decimals / 10;               // reduce precision
+        expn += (expn < -6 ? 48 : 50 * 3 - 6);
+        units = expn % 3;                       // use units place for exponent offset
+        expn = expn / 3;
+    }
+    return (sign << 31) | (expn << 25) | (units * 10000000 + decimals);
+}
+
 decims32 makeNumber32(int units, uint32_t decimals, int expn) {
-    uint32_t sign = (units < 0) << 31;
+    uint32_t sign = (units < 0);
     units = abs(units);
     if (expn >= -6 && expn < 6)
     {
@@ -136,7 +169,129 @@ decims32 makeNumber32(int units, uint32_t decimals, int expn) {
         units = expn % 3;                               // use units place for exponent offset
         expn = expn / 3;
     }
-    return sign | (expn << 25) | (decimals + units * 10000000);
+    return (sign << 31) | (expn << 25) | (decimals + units * 10000000);
+}
+
+int numberParts32_(decims32 num, int * expn, uint32_t * decimals)
+{
+    // Getting exponent and mantissa bits
+    int16_t exponent = (num >> 25) & 0x3f;
+    uint32_t mantissa = num & 0x1ffffff;
+    if (exponent > 13 && exponent < 50)
+    {
+        uint16_t zexpn = exponent - 14;
+        uint16_t bucket = zexpn % 3;
+        *expn = zexpn / 3 - 6;
+        *decimals = mantissa + (
+            (bucket == 0) ? 10000000 :
+            (bucket == 1) ? 40000000 :
+                            70000000);
+    }
+    else
+    {
+        *expn = (exponent - (exponent < 14 ? 16 : 48)) * 3;
+        if (mantissa >= 20000000)
+        {
+            *expn += 2;
+            mantissa -= 20000000;
+        }
+        else if (mantissa >= 10000000)
+        {
+            *expn += 1;
+            mantissa -= 10000000;
+        }
+        *decimals = mantissa * 10;
+    }
+    return num >> 31;
+}
+
+uint32_t shiftDecimals32(uint32_t decimals, int amount) {
+    if (amount < -8 || decimals == 0)
+    {
+        return 0;
+    }
+    else if (amount < 0)
+    {
+        switch ((-amount) % 4)
+        {
+            case 1:
+            decimals /= 10;
+            break;
+            
+            case 2:
+            decimals /= 100;
+            break;
+            
+            case 3:
+            decimals /= 1000;
+            break;
+        }
+        amount = amount / 4 * 4;
+        for (int t = 0; t > amount && decimals != 0; t -= 4)
+        {
+            decimals /= 10000;
+        }
+        return decimals;
+    }
+    else
+    {
+        uint32_t fac = 1;
+        for (int h = 0; h < amount; ++h)
+        {
+            fac *= 10;
+        }
+        return decimals * fac;
+    }
+}
+
+decims32 add32(decims32 a, decims32 b) {
+    int exp_a, exp_b;
+    uint32_t m_a, m_b;
+    int sign_a = numberParts32_(a, &exp_a, &m_a);
+    int sign_b = numberParts32_(b, &exp_b, &m_b);
+    int expn = (exp_a > exp_b) ? exp_a : exp_b;
+    uint32_t sign = 0;
+    uint32_t sum;
+    if (exp_a == exp_b)
+    {
+        // Same exponent
+        if (sign_a != sign_b && ((sign_a == 1 && m_a > m_b) || (sign_b == 1 && m_b > m_a)))
+        {
+            sign = 1;
+        }
+        sum = (sign_a == sign_b) ? m_a + m_b : abs((int32_t) m_a - (int32_t) m_b);
+    }
+    else
+    {
+        // Different exponents
+        if (sign_a != sign_b && ((sign_a == 1 && exp_a == expn) || (sign_b == 1 && exp_b == expn)))
+        {
+            sign = 1;
+        }
+        int exp_diff = abs(exp_b - exp_a);
+        uint64_t large = (exp_a == expn) ? m_a : m_b;
+        uint64_t small = (exp_a == expn) ? m_b : m_a;
+        if (sign_a != sign_b)
+        {
+            // Sum could lose precision
+            large *= 10;
+            --expn;
+            --exp_diff;
+        }
+        small = shiftDecimals32(small, -exp_diff);
+        sum = (sign_a == sign_b) ? large + small : abs((int32_t) large - (int32_t) small);
+    }
+    if (sum > 99999999)
+    {
+        sum /= 10;
+        ++expn;
+    }
+    while (expn != -48 && sum < 10000000)
+    {
+        sum *= 10;
+        --expn;
+    }
+    return makeNumber32_(sign, sum, expn);
 }
 
 int main(int n, char * args[]) {
@@ -153,6 +308,7 @@ int main(int n, char * args[]) {
     printf("One: 0x%.8x \n", makeNumber32(+1, 0, 0));           // 0x40000000
     printf("Four: 0x%.8x \n", makeNumber32(+4, 0, 0));          // 0x42000000
     printf("Minus five dot five: 0x%.8x \n", makeNumber32(-5, 5000000, 0));    // 0xc2e4e1c0
+    puts(numberAsString32(add32(makeNumber32(+1, 0, -48), 123456)));
 }
 
 /*
