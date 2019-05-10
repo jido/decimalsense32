@@ -80,39 +80,6 @@ decims32 makeNumber32_(int sign, uint32_t decimals, int expn) {
     return (sign << 31) | (expn << 25) | decimals;
 }
 
-//__attribute__((always_inline))
-decims32 makeNumber32(int units, uint32_t decimals, int expn) {
-    uint32_t sign = (units < 0);
-    units = abs(units);
-    if (expn >= -6 && expn < 6)
-    {
-        // Place 8-digit value in the appropriate bucket
-        if (units >= 7)
-        {
-            units -= 7;
-            expn = (expn + 6) * 3 + 16;
-        }
-        else if (units >= 4)
-        {
-            units -= 4;
-            expn = (expn + 6) * 3 + 15;
-        }
-        else
-        {
-            units -= 1;
-            expn = (expn + 6) * 3 + 14;
-        }
-    }
-    else
-    {
-        decimals = units * 1000000 + decimals / 10;     // reduce precision
-        expn += (expn < -6 ? 48 : 50 * 3 - 6);
-        units = expn % 3;                               // use units place for exponent offset
-        expn = expn / 3;
-    }
-    return (sign << 31) | (expn << 25) | (units * 10000000 + decimals);
-}
-
 decims32 asDecimal32(double f) {
     
     static uint64_t powersOf2[340] = { // First nine non-zero digits of powers of 2 in range (-180 to 160) - 52 
@@ -167,13 +134,17 @@ decims32 asDecimal32(double f) {
     
     double *pf = &f;
     uint64_t *fbits = (uint64_t *) pf;
-    int ee = (*fbits >> 52) & 0x7FF;            // exponent bits
+    int ee = (*fbits >> 52) & 0x7FF;                // exponent bits
     uint64_t mm = (1LL << 52) + (*fbits & 0xFffffFFFFffff);     // mantissa bits
-    mm = (mm + 500000) / 1000000;               // convert to millions
+    if (ee == 0x7FF || ee < 1023 - 180 || ee >= 1023 + 160) {
+        float v = (float) f;                        // special or out of range, convert to float
+        return *(decims32 *)(&v);
+    }
+    mm = (mm + 500000) / 1000000;                   // convert to millions
     mm = powersOf2[ee - 1023 + 180] * mm;       
     uint32_t x = (mm + 5000000000) / 10000000000;   // divide by ten billion to get a value in range of 10,000,000
-    int e = expo10[ee - 1023 + 180] + 15;       // TODO: why 15?
-    if (x >= 100000000) {
+    int e = expo10[ee - 1023 + 180] + 15;           // TODO: why 15?
+    while (e < -48 || x >= 100000000) {
         x /= 10;
         ++e;
     }
@@ -181,8 +152,7 @@ decims32 asDecimal32(double f) {
 }
 
 //__attribute__((always_inline))
-int numberParts32_(decims32 num, int * expn, uint32_t * decimals)
-{
+int numberParts32_(decims32 num, int * expn, uint32_t * decimals) {
     // Getting exponent and mantissa bits
     int16_t exponent = (num >> 25) & 0x3f;
     uint32_t mantissa = num & 0x1ffffff;
@@ -212,6 +182,25 @@ int numberParts32_(decims32 num, int * expn, uint32_t * decimals)
         *decimals = mantissa * 10;
     }
     return num >> 31;
+}
+
+double numberAsDouble32(decims32 num) {
+    static double ef[] = { 1e-54, 1e-53, 1e-52, 1e-51, 1e-50,
+        1e-49, 1e-48, 1e-47, 1e-46, 1e-45, 1e-44, 1e-43, 1e-42, 1e-41, 1e-40,
+        1e-39, 1e-38, 1e-37, 1e-36, 1e-35, 1e-34, 1e-33, 1e-32, 1e-31, 1e-30,
+        1e-29, 1e-28, 1e-27, 1e-26, 1e-25, 1e-24, 1e-23, 1e-22, 1e-21, 1e-20,
+        1e-19, 1e-18, 1e-17, 1e-16, 1e-15, 1e-14, 1e-13, 1e-12, 1e-11, 1e-10,
+        1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1,
+        1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
+        1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+        1e20, 1e21, 1e22, 1e23, 1e24, 1e25, 1e26, 1e27, 1e28, 1e29,    
+        1e30, 1e31, 1e32, 1e33, 1e34, 1e35, 1e36, 1e37, 1e38, 1e39,
+        1e40, 1e41, 1e42, 1e43, 1e44, 1e45, 1e46, 1e47
+    };
+    int expn;
+    uint32_t mant;
+    int negat = numberParts32_(num, &expn, &mant);
+    return (negat ? -mant : mant) * ef[expn + 54] * 0.0000001;
 }
 
 char * numberAsString32(decims32 num) {
@@ -377,19 +366,6 @@ decims32 mul32(decims32 a, decims32 b) {
     }
 }
 
-decims32 mefe32(decims32 a, decims32 b) {
-    int exp_a, exp_b;
-    uint32_t m_a, m_b;
-    int sign_a = a >> 31;
-    m_a = a & 0x1fffffff;
-    exp_a = (a >> 25) & 63;
-    int sign_b = b >> 31;
-    m_b = b & 0x1fffffff;
-    exp_b = (b >> 25) & 63;
-    uint32_t negat = (sign_a != sign_b);
-    return (negat << 31) | (exp_b << 25) | m_a;
-}
-
 decims32 div32(decims32 a, decims32 b) {
     int exp_a, exp_b;
     uint32_t m_a, m_b;
@@ -419,6 +395,7 @@ decims32 div32(decims32 a, decims32 b) {
 }
 
 int main(int n, char * args[]) {
+    printf("0.0276840e-48: %s\n", numberAsString32(asDecimal32(0.0276840e-48)));
     printf("Largest number: %s\n", numberAsString32(0x7F7D7840));  // 5.0e+47
     printf("Smallest normal: %s\n", numberAsString32(0xF4240));    // 1.0e-48
     printf("Eight significant digits: %s\n", numberAsString32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
@@ -488,14 +465,14 @@ int main(int n, char * args[]) {
             {
                 double f = (units * 10000000 + (units >= 0 ? deci : -deci)) * ef[expn + 54] * 0.0000001;
                 decims32 fnum = asDecimal32(f);
-                decims32 num = makeNumber32(units, deci, expn); //div32(s * r, );, s * r
+                decims32 num = makeNumber32_(units < 0, abs(units) * 10000000 + deci, expn); //div32(s * r, );, s * r
                 if ((r & 0xff764) == 0x2d524) {
                     printf(" %s«%c» ", numberAsString32(num), 'x' + (num == fnum));
                     if (num != fnum) {
                         int e;
                         uint32_t x;
                         numberParts32_(fnum, &e, &x);
-                        printf("Decomposition: %u exp %d\n", x, e);
+                        printf("%.8g Decomposition: %u exp %d\n", f, x, e);
                     }
                 }
                 r >>= 3;
