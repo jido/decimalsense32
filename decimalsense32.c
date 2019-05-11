@@ -44,8 +44,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
 #include <math.h>
+#include <time.h>
 
 typedef uint32_t decims32;
 
@@ -86,6 +86,14 @@ decims32 makeNumber32_(int sign, uint32_t decimals, int expn) {
     return (sign << 31) | (expn << 25) | decimals;
 }
 
+// Convert double to decimal directly by looking at the bit pattern of the number
+// Algorithm:
+//  Let mm and ee be the mantissa and exponent of the double (base 2).
+//  Number = (1 + (mm * 2^-52)) * 2^(ee-1023)
+//         = (1 * 2^52 + mm) * 2^(ee-1023-52)
+//  We use a list of pre-calculated values for 2^(ee-1023-52) within the range of
+//  decimalsense32 numbers, expressed in base 10.
+//  Double values outside the range are converted to 0 or infinity.
 decims32 asDecimal32(double f) {
     
     static uint64_t powersOf2[340] = { // First nine non-zero digits of powers of 2 in range (-180 to 160) - 52 
@@ -158,7 +166,7 @@ decims32 asDecimal32(double f) {
 }
 
 //__attribute__((always_inline))
-int numberParts32_(decims32 num, int * expn, uint32_t * decimals) {
+int numberParts32_(decims32 num, uint32_t *decimals, int *expn) {
     // Getting exponent and mantissa bits
     int16_t exponent = (num >> 25) & 0x3f;
     uint32_t mantissa = num & 0x1ffffff;
@@ -205,7 +213,7 @@ double numberAsDouble32(decims32 num) {
     };
     int expn;
     uint32_t mant;
-    int negat = numberParts32_(num, &expn, &mant);
+    int negat = numberParts32_(num, &mant, &expn);
     if (num == 0xFF800000 || num == 0x7F800000)
     {
         return (negat ? -INFINITY : INFINITY);
@@ -226,7 +234,7 @@ double numberAsDouble32(decims32 num) {
             return NAN;
         }
     }
-    double res = (negat ? -(int)mant : (int)mant) * ef[expn + 54] * 0.0000001;
+    double res = (negat ? -(int32_t)mant : (int32_t)mant) * ef[expn + 54] * 0.0000001;
     return res;
 }
 
@@ -265,8 +273,8 @@ uint32_t shiftDecimals32(uint32_t decimals, int amount) {
 decims32 add32(decims32 a, decims32 b) {
     int exp_a, exp_b;
     uint32_t m_a, m_b;
-    int sign_a = numberParts32_(a, &exp_a, &m_a);
-    int sign_b = numberParts32_(b, &exp_b, &m_b);
+    int sign_a = numberParts32_(a, &m_a, &exp_a);
+    int sign_b = numberParts32_(b, &m_b, &exp_b);
     int expn = (exp_a > exp_b) ? exp_a : exp_b;
     uint32_t sign = 0;
     uint32_t sum;
@@ -323,8 +331,8 @@ decims32 sub32(decims32 a, decims32 b) {
 decims32 mul32(decims32 a, decims32 b) {
     int exp_a, exp_b;
     uint32_t m_a, m_b;
-    int sign_a = numberParts32_(a, &exp_a, &m_a);
-    int sign_b = numberParts32_(b, &exp_b, &m_b);
+    int sign_a = numberParts32_(a, &m_a, &exp_a);
+    int sign_b = numberParts32_(b, &m_b, &exp_b);
     uint32_t negat = (sign_a != sign_b);
     int expn = exp_a + exp_b;
     if (expn < -48)
@@ -335,7 +343,7 @@ decims32 mul32(decims32 a, decims32 b) {
     else if (expn > 47)
     {
         // Too large, return infinity
-        return 0x7f800000 | (negat << 31);
+        return (negat << 31) | 0x7f800000;
     }
     else
     {
@@ -357,8 +365,8 @@ decims32 mul32(decims32 a, decims32 b) {
 decims32 div32(decims32 a, decims32 b) {
     int exp_a, exp_b;
     uint32_t m_a, m_b;
-    int sign_a = numberParts32_(a, &exp_a, &m_a);
-    int sign_b = numberParts32_(b, &exp_b, &m_b);
+    int sign_a = numberParts32_(a, &m_a, &exp_a);
+    int sign_b = numberParts32_(b, &m_b, &exp_b);
     int negat = (sign_a != sign_b);
     int expn = exp_a - exp_b;
     uint64_t quo = ((uint64_t) m_a * 10000000) / m_b;
@@ -368,7 +376,7 @@ decims32 div32(decims32 a, decims32 b) {
         if (expn == 47)
         {
             // Too large, return infinity
-            return 0x7f800000 | (negat << 31);
+            return (negat << 31) | 0x7f800000;
         }
         quo /= 10;
         expn += 1;
@@ -384,9 +392,9 @@ decims32 div32(decims32 a, decims32 b) {
 
 int main(int n, char * args[]) {
     printf("0.0276840e-48: %.8g\n", numberAsDouble32(asDecimal32(0.0276840e-48)));
-    printf("Largest number: %.8g\n", numberAsDouble32(0xFF7D7840));  // 5.0e+47
+    printf("Largest number: %.8g\n", numberAsDouble32(0x7F7D7840));  // 5.0e+47
     printf("Smallest normal: %.8g\n", numberAsDouble32(0xF4240));    // 1.0e-48
-    printf("Eight significant digits: %.8g\n", numberAsDouble32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
+    printf("Eight significant digits: %.8g\n", numberAsDouble32(0x1C000001));  // Small 8-digit precision 1.0e-6
     printf("Seven significant digits: %.8g\n", numberAsDouble32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
     printf("Smallest number (1.0e-54): %.8g\n", numberAsDouble32(0x00000001));
     printf("Number 4.698,543e10: %.8g\n", numberAsDouble32(asDecimal32(+4.698543e+10)));
@@ -410,6 +418,7 @@ int main(int n, char * args[]) {
     printf(" -3.0e-2 / 0.006e-48 = %.8g\n", numberAsDouble32(div32(asDecimal32(-3.0e-2), 6000)));
     printf(" 9.999999e-48 / 1.0e-54 = %.8g\n", numberAsDouble32(div32(asDecimal32(9.999999e-48), 1)));
     
+    srandom(clock());
     double ee = 1e-48 * 0.0000001;
     for (int expn = -48; expn <= 47; ++expn, ee *= 10.0)
     {
@@ -428,7 +437,7 @@ int main(int n, char * args[]) {
                     if (d != fnum) {
                         int e;
                         uint32_t x;
-                        numberParts32_(fnum, &e, &x);
+                        numberParts32_(fnum, &x, &e);
                         printf("%.8g Decomposition: %u exp %d\n", f, x, e);
                     }
                 }
