@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 typedef uint32_t decims32;
 
@@ -200,46 +201,27 @@ double numberAsDouble32(decims32 num) {
     int expn;
     uint32_t mant;
     int negat = numberParts32_(num, &expn, &mant);
-    return (negat ? -mant : mant) * ef[expn + 54] * 0.0000001;
-}
-
-char * numberAsString32(decims32 num) {
-    static char result[] = "+1.2345678e-99";
-
-    // Getting exponent and mantissa bits
-    int expn;
-    uint32_t mant;
-    char sign = (numberParts32_(num, &expn, &mant) ? '-' : '+');
-    
     if (num == 0xFF800000 || num == 0x7F800000)
     {
-        static char inf[] = "+Infinity";
-        inf[0] = sign;
-        return inf;
+        return (negat ? -INFINITY : INFINITY);
     }
     if (expn == 47 && mant > 50000000)
     {
-        return "NaN";
+        return NAN;
     }
     uint32_t mantbits = num & 0x1ffffff;
     if (mantbits >= 30000000)
     {
-        return "NaN";
+        return NAN;
     }
     if ((expn != -48 && expn < -6) || expn >= 6)
     {
         if (mantbits % 10000000 < 1000000)
         {
-            return "NaN";
+            return NAN;
         }
     }
-    
-    result[0] = sign;
-    sprintf(result + 1, "%0.8u", mant);
-    memmove(result + 3, result + 2, 7);
-    result[2] = '.';
-    sprintf(result + 11, "%+d", expn);
-    return result;
+    return (negat ? -mant : mant) * ef[expn + 54] * 0.0000001;
 }
 
 //__attribute__((always_inline))
@@ -395,32 +377,32 @@ decims32 div32(decims32 a, decims32 b) {
 }
 
 int main(int n, char * args[]) {
-    printf("0.0276840e-48: %s\n", numberAsString32(asDecimal32(0.0276840e-48)));
-    printf("Largest number: %s\n", numberAsString32(0x7F7D7840));  // 5.0e+47
-    printf("Smallest normal: %s\n", numberAsString32(0xF4240));    // 1.0e-48
-    printf("Eight significant digits: %s\n", numberAsString32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
-    printf("Seven significant digits: %s\n", numberAsString32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
-    printf("Smallest number (1.0e-54): %s\n", numberAsString32(0x00000001));
-    printf("Number 4.698,543e10: %s\n", numberAsString32(asDecimal32(+4.698543e+10)));
-    printf("Invalid raw value: %s\n", numberAsString32(20000000));    // Not a number (missing number in units place)
-    printf(" +∞: %s\n", numberAsString32(0x7f800000));
-    printf(" -∞: %s\n", numberAsString32(asDecimal32(-5.1658240e+47)));
+    printf("0.0276840e-48: %.8g\n", numberAsDouble32(asDecimal32(0.0276840e-48)));
+    printf("Largest number: %.8g\n", numberAsDouble32(0x7F7D7840));  // 5.0e+47
+    printf("Smallest normal: %.8g\n", numberAsDouble32(0xF4240));    // 1.0e-48
+    printf("Eight significant digits: %.8g\n", numberAsDouble32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
+    printf("Seven significant digits: %.8g\n", numberAsDouble32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
+    printf("Smallest number (1.0e-54): %.8g\n", numberAsDouble32(0x00000001));
+    printf("Number 4.698,543e10: %.8g\n", numberAsDouble32(asDecimal32(+4.698543e+10)));
+    printf("Invalid raw value: %.8g\n", numberAsDouble32(20000000));    // Not a number (missing number in units place)
+    printf(" +∞: %.8g\n", numberAsDouble32(0x7f800000));
+    printf(" -∞: %.8g\n", numberAsDouble32(asDecimal32(-5.1658240e+47)));
     printf("Zero: 0x%.8x \n", asDecimal32(0.0));        // 0
     printf("One: 0x%.8x \n", asDecimal32(+1.0));        // 0x40000000
     printf("Four: 0x%.8x \n", asDecimal32(+4.0));       // 0x42000000
     printf("Minus five dot five: 0x%.8x \n", asDecimal32(-5.5));    // 0xc2e4e1c0
-    printf(" 1.0e-47 + 0.123456e-48 = %s\n", numberAsString32(add32(asDecimal32(1.0e-47), 123456)));
-    printf(" 1.0000009 + 1.0000004 = %s\n", numberAsString32(add32(asDecimal32(1.0000009), asDecimal32(1.0000004))));
-    printf(" -1.0e-48 + 0.123456e-48 = %s\n", numberAsString32(add32(asDecimal32(-1.0e-48), 123456)));
-    printf(" -1.0 - -1.2345678e-6 = %s\n", numberAsString32(sub32(asDecimal32(-1.0), asDecimal32(-1.2345678e-6))));
-    printf(" 1.0000009e4 - 1.0000004e4 = %s\n", numberAsString32(sub32(asDecimal32(1.0000009e4), asDecimal32(1.0000004e4))));
-    printf(" 3.0e3 * 5.0 = %s\n", numberAsString32(mul32(asDecimal32(3.0e3), asDecimal32(5.0))));
-    printf(" -1.0e-48 * 0.123456e-48 = %s\n", numberAsString32(mul32(asDecimal32(-1.0e-48), 123456)));
-    printf(" -10.0 * 0.123456e-48 = %s\n", numberAsString32(mul32(asDecimal32(-10.0), 123456)));
-    printf(" 3.0e3 / 5.0 = %s\n", numberAsString32(div32(asDecimal32(3.0e3), asDecimal32(5.0))));
-    printf(" -1.0e-48 / 0.123456e-48 = %s\n", numberAsString32(div32(asDecimal32(-1.0e-48), 123456)));
-    printf(" -3.0e-2 / 0.006e-48 = %s\n", numberAsString32(div32(asDecimal32(-3.0e-2), 6000)));
-    printf(" 9.999999e-48 / 1.0e-54 = %s\n", numberAsString32(div32(asDecimal32(9.999999e-48), 1)));
+    printf(" 1.0e-47 + 0.123456e-48 = %.8g\n", numberAsDouble32(add32(asDecimal32(1.0e-47), 123456)));
+    printf(" 1.0000009 + 1.0000004 = %.8g\n", numberAsDouble32(add32(asDecimal32(1.0000009), asDecimal32(1.0000004))));
+    printf(" -1.0e-48 + 0.123456e-48 = %.8g\n", numberAsDouble32(add32(asDecimal32(-1.0e-48), 123456)));
+    printf(" -1.0 - -1.2345678e-6 = %.8g\n", numberAsDouble32(sub32(asDecimal32(-1.0), asDecimal32(-1.2345678e-6))));
+    printf(" 1.0000009e4 - 1.0000004e4 = %.8g\n", numberAsDouble32(sub32(asDecimal32(1.0000009e4), asDecimal32(1.0000004e4))));
+    printf(" 3.0e3 * 5.0 = %.8g\n", numberAsDouble32(mul32(asDecimal32(3.0e3), asDecimal32(5.0))));
+    printf(" -1.0e-48 * 0.123456e-48 = %.8g\n", numberAsDouble32(mul32(asDecimal32(-1.0e-48), 123456)));
+    printf(" -10.0 * 0.123456e-48 = %.8g\n", numberAsDouble32(mul32(asDecimal32(-10.0), 123456)));
+    printf(" 3.0e3 / 5.0 = %.8g\n", numberAsDouble32(div32(asDecimal32(3.0e3), asDecimal32(5.0))));
+    printf(" -1.0e-48 / 0.123456e-48 = %.8g\n", numberAsDouble32(div32(asDecimal32(-1.0e-48), 123456)));
+    printf(" -3.0e-2 / 0.006e-48 = %.8g\n", numberAsDouble32(div32(asDecimal32(-3.0e-2), 6000)));
+    printf(" 9.999999e-48 / 1.0e-54 = %.8g\n", numberAsDouble32(div32(asDecimal32(9.999999e-48), 1)));
     static double ef[] = { 1e-54, 1e-53, 1e-52, 1e-51, 1e-50,
         1e-49, 1e-48, 1e-47, 1e-46, 1e-45, 1e-44, 1e-43, 1e-42, 1e-41, 1e-40,
         1e-39, 1e-38, 1e-37, 1e-36, 1e-35, 1e-34, 1e-33, 1e-32, 1e-31, 1e-30,
@@ -452,7 +434,7 @@ int main(int n, char * args[]) {
     }
     */
     
-    printf("3.437519e22 = %.8g = %s\n", (3 + 4375190 * 0.0000001) * ef[22 + 54], numberAsString32(asDecimal32(3.437519e22)));
+    printf("3.437519e22 = %.8g = %.8g\n", (3 + 4375190 * 0.0000001) * ef[22 + 54], numberAsDouble32(asDecimal32(3.437519e22)));
     long s = 90000790;
     printf("9.000079e-48 = %.8g\n", s * ef[6] * 0.0000001);
     for (int expn = -48; expn <= 47; ++expn)
@@ -467,7 +449,7 @@ int main(int n, char * args[]) {
                 decims32 fnum = asDecimal32(f);
                 decims32 num = makeNumber32_(units < 0, abs(units) * 10000000 + deci, expn); //div32(s * r, );, s * r
                 if ((r & 0xff764) == 0x2d524) {
-                    printf(" %s«%c» ", numberAsString32(num), 'x' + (num == fnum));
+                    printf(" %.8g«%c» ", numberAsDouble32(num), 'x' + (num == fnum));
                     if (num != fnum) {
                         int e;
                         uint32_t x;
