@@ -61,7 +61,9 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
 
 ### Exponent range
 
-* __0-13__
+* __e = 0–13__
+
+  Decimal numbers in range **1.0e-48** to **9.999,999e-7**
 
   Exponent = (_exponent bits_ - 16) * 3 + most significant digit of _mantissa bits_
   
@@ -79,8 +81,10 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   
   Number = 2.345,678e-29
 
-* __14-49__
+* __e = 14–49__
 
+  Decimal numbers in range **0.000,001** to **999,999.99**
+  
   Exponent = (_exponent bits_ - 14) / 3 - 6
   
   Bucket = remainder of (_exponent bits_ - 14) / 3
@@ -103,15 +107,19 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   
   Number = 4.000,012,3e+1
 
-* __50-63__
+* __e = 50–63__
 
+  Decimal numbers in range **1,000,000** to **5e+47**
+  
   Exponent = (_exponent bits_ - 48) * 3 + most significant digit of _mantissa bits_
   
   Mantissa = seven least significant digits of _mantissa bits_
 
-  Same principles as exponent range __0-13__
+  Same principles as exponent range __e = 0–13__
  
 Subnormal numbers
 -----------------
+
+ Encoded in the same way as normal numbers with e = 0, except that m is less than 1,000,000.
 
  Equivalent to 32-bit integers (ignoring the sign bit) from _0_ to _999,999_
