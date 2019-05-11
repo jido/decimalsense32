@@ -72,11 +72,16 @@ decims32 makeNumber32_(int sign, uint32_t decimals, int expn) {
     }
     else
     {
+        if (expn < -54) return 0;
         decimals = decimals / 10;               // reduce precision
         expn += (expn < -6 ? 48 : 50 * 3 - 6);
         uint32_t units = expn % 3;              // use units place for exponent offset
         expn = expn / 3;
         decimals += units * 10000000;
+        if (expn < 0 || expn > 63 || (expn == 63 && decimals >= 50000000))
+        {
+            return (sign << 31) | 0x7F800000;
+        }
     }
     return (sign << 31) | (expn << 25) | decimals;
 }
@@ -221,7 +226,8 @@ double numberAsDouble32(decims32 num) {
             return NAN;
         }
     }
-    return (negat ? -mant : mant) * ef[expn + 54] * 0.0000001;
+    double res = (negat ? -(int)mant : (int)mant) * ef[expn + 54] * 0.0000001;
+    return res;
 }
 
 //__attribute__((always_inline))
@@ -378,7 +384,7 @@ decims32 div32(decims32 a, decims32 b) {
 
 int main(int n, char * args[]) {
     printf("0.0276840e-48: %.8g\n", numberAsDouble32(asDecimal32(0.0276840e-48)));
-    printf("Largest number: %.8g\n", numberAsDouble32(0x7F7D7840));  // 5.0e+47
+    printf("Largest number: %.8g\n", numberAsDouble32(0xFF7D7840));  // 5.0e+47
     printf("Smallest normal: %.8g\n", numberAsDouble32(0xF4240));    // 1.0e-48
     printf("Eight significant digits: %.8g\n", numberAsDouble32(0x1C000000));  // Smallest 8-digit precision 1.0e-6
     printf("Seven significant digits: %.8g\n", numberAsDouble32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
