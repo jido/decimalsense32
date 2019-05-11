@@ -369,11 +369,11 @@ decims32 div32(decims32 a, decims32 b) {
     int sign_a = numberParts32_(a, &m_a, &exp_a);
     int sign_b = numberParts32_(b, &m_b, &exp_b);
     int negat = (sign_a != sign_b);
+    if (m_b == 0) return (negat << 31) | 0x7f800000;
     int expn = exp_a - exp_b;
     uint64_t quo = ((uint64_t) m_a * 10000000) / m_b;
     while (quo > 99999999 || (quo > 50000000 && expn == 47)) // note: should only loop if b is subnormal
     {
-        //printf("div32 loop %de%d / %de%d quo=%llu exp=%d\n", m_a, exp_a, m_b, exp_b, quo, expn);
         if (expn == 47)
         {
             // Too large, return infinity
@@ -420,8 +420,7 @@ int main(int n, char * args[]) {
     printf(" 9.999999e-48 / 1.0e-54 = %.8g\n", numberAsDouble32(div32(asDecimal32(9.999999e-48), 1)));
     
     srandom(clock());
-    double ee = 1e-48 * 0.0000001;
-    for (int expn = -48; expn <= 47; ++expn, ee *= 10.0)
+    for (int expn = -48; expn <= 47; ++expn)
     {
         for (int units = -9; units <= 9 - 5 * (expn == 47); units += 1 + (expn > -48 && units == -1))
         {
@@ -429,18 +428,10 @@ int main(int n, char * args[]) {
             long s = r;
             for (int deci = 0; deci < 10000000; deci += 3 + r % 8)
             {
-                double f = (units * 10000000 + (units >= 0 ? deci : -deci)) * ee;
                 decims32 d = makeNumber32_(units < 0, abs(units) * 10000000 + deci, expn);
-                decims32 num = div32(s * r, (d == 0? 1: d));
+                decims32 num = div32(s * r, d);
                 if ((r & 0xff764) == 0x2d524) {
-                    decims32 fnum = asDecimal32(f);
-                    printf(" %.8g«%c» ", numberAsDouble32(num), 'x' + (d == fnum));
-                    if (d != fnum) {
-                        int e;
-                        uint32_t x;
-                        numberParts32_(fnum, &x, &e);
-                        printf("%.8g Decomposition: %u exp %d\n", f, x, e);
-                    }
+                    printf(" %.8g ", numberAsDouble32(num));
                 }
                 r >>= 3;
                 if (r == 0) r = random();
