@@ -150,7 +150,8 @@ decims32 asDecimal32(double f) {
     uint64_t *fbits = (uint64_t *) pf;
     int ee = (*fbits >> 52) & 0x7FF;                // exponent bits
     uint64_t mm = (1LL << 52) + (*fbits & 0xFffffFFFFffff);     // mantissa bits
-    if (ee == 0x7FF || ee < 1023 - 180 || ee >= 1023 + 160) {
+    if (ee == 0x7FF || ee < 1023 - 180 || ee >= 1023 + 160) 
+    {
         float v = (float) f;                        // special or out of range, convert to float
         return *(decims32 *)(&v);
     }
@@ -158,7 +159,8 @@ decims32 asDecimal32(double f) {
     mm = powersOf2[ee - 1023 + 180] * mm;       
     uint32_t x = (mm + 5000000000) / 10000000000;   // divide by ten billion to get a value in range of 10,000,000
     int e = expo10[ee - 1023 + 180] + 15;           // TODO: why 15?
-    while (e < -48 || x >= 100000000) {
+    while (e < -48 || x >= 100000000) 
+    {
         x /= 10;
         ++e;
     }
@@ -168,12 +170,12 @@ decims32 asDecimal32(double f) {
 //__attribute__((always_inline))
 int numberParts32_(decims32 num, uint32_t *decimals, int *expn) {
     // Getting exponent and mantissa bits
-    int16_t exponent = (num >> 25) & 0x3f;
+    int exponent = (num >> 25) & 0x3f;
     uint32_t mantissa = num & 0x1ffffff;
-    if (exponent > 13 && exponent < 50)
+    if (exponent >= 14 && exponent < 50)
     {
-        uint16_t zexpn = exponent - 14;
-        uint16_t bucket = zexpn % 3;
+        int zexpn = exponent - 14;
+        int bucket = zexpn % 3;
         *expn = zexpn / 3 - 6;
         *decimals = mantissa + (
             (bucket == 0) ? 10000000 :
@@ -240,7 +242,7 @@ double numberAsDouble32(decims32 num) {
 }
 
 //__attribute__((always_inline))
-uint32_t shiftDecimals32(uint32_t decimals, int amount) {
+uint32_t shiftDecimals32_(uint32_t decimals, int amount) {
     if (amount > 8 || decimals == 0)
     {
         return 0;
@@ -305,7 +307,7 @@ decims32 add32(decims32 a, decims32 b) {
             --expn;
             --exp_diff;
         }
-        small = shiftDecimals32(small, exp_diff);
+        small = shiftDecimals32_(small, exp_diff);
         sum = (sign_a == sign_b) ? large + small : abs((int32_t) large - (int32_t) small);
     }
     if (sum > 99999999)
@@ -391,10 +393,11 @@ decims32 div32(decims32 a, decims32 b) {
     return makeNumber32_(negat, quo, expn);
 }
 
+#ifdef TEST_DECIMALSENSE_32
 int main(int n, char * args[]) {
     printf("0.0276840e-48: %.8g\n", numberAsDouble32(asDecimal32(0.0276840e-48)));
     printf("Largest number: %.8g\n", numberAsDouble32(0x7F7D7840));  // 5.0e+47
-    printf("Smallest normal: %.8g\n", numberAsDouble32(0xF4240));    // 1.0e-48
+    printf("Smallest normal: %.8g\n", numberAsDouble32(1000000));    // 1.0e-48
     printf("Eight significant digits: %.8g\n", numberAsDouble32(0x1C000001));  // Small 8-digit precision 1.0e-6
     printf("Seven significant digits: %.8g\n", numberAsDouble32(0x1A000000 + 29999999));  // Largest small 7-digit precision 9.999,999e-7
     printf("Smallest number (1.0e-54): %.8g\n", numberAsDouble32(0x00000001));
@@ -422,17 +425,15 @@ int main(int n, char * args[]) {
     srandom(clock());
     for (int expn = -48; expn <= 47; ++expn)
     {
-        for (int units = -9; units <= 9 - 5 * (expn == 47); units += 1 + (expn > -48 && units == -1))
+        for (int units = -9 + 5 * (expn == 47); units <= 9 - 5 * (expn == 47); units += 1 + (expn > -48 && units == -1))
         {
             long r = random();
             long s = r;
-            for (int deci = 0; deci < 10000000; deci += 3 + r % 8)
+            for (int deci = 0; deci < 10000000; deci += 3 + 113 * (r % 8))
             {
                 decims32 d = makeNumber32_(units < 0, abs(units) * 10000000 + deci, expn);
-                decims32 num = div32(s * r, d);
-                if ((r & 0xff764) == 0x2d524) {
-                    printf(" %.8g ", numberAsDouble32(num));
-                }
+                decims32 num = add32(s * r, d);
+                printf(" %.8g ", numberAsDouble32(num));
                 r >>= 3;
                 if (r == 0) r = random();
             }
@@ -440,3 +441,4 @@ int main(int n, char * args[]) {
         }
     }
 }
+#endif
