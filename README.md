@@ -1,7 +1,7 @@
 # decimalsense32
-A decimal number format that makes sense
+A 32-bit decimal number format that makes sense
 
-This projects brings some of the cleverness of [decimalsense numbers](https://github.com/jido/decimalsense) to the single precision decimal number world.
+This project takes some of the ideas of [decimalsense numbers](https://github.com/jido/decimalsense) to the single precision decimal number world.
 
 Decimal numbers do not need be that complex.
 
@@ -19,6 +19,8 @@ Subnormal number range (non-zero):
 **1.0e-54** to **9.999,99e-49**
 
 (hexadecimal _1_ to _F423F_)
+
+Normal numbers between 1.0e-6 and 1.0e+6 have eight significant digits. Normal numbers outside that range have seven significant digits. In monetary terms, that means you can only count cents for amounts less than a million.
 
 Zero:
 
@@ -38,8 +40,6 @@ there is only one way to encode a particular nonzero number.
 According to IEEE, positive and negative zero are equal which is the only exception to unique number representation.
 
 Not a Number (NaN) can have several representations in accordance with IEEE 754. Representation of infinity also follows the IEEE 754 standard.
-
-Normal numbers between 1.0e-6 and 1.0e+6 have eight significant digits. Normal numbers outside that range have seven significant digits. In monetary terms, that means you can only count cents for amounts less than a million.
 
 Format
 ======
