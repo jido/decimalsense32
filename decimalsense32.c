@@ -232,7 +232,9 @@ double numberAsDouble32(decims32 num) {
     }
     if ((expn != -48 && expn < -6) || expn >= 6)
     {
-        if (mantbits % 10000000 < 1000000)
+        if ((mantbits < 1000000) ||
+            (mantbits >= 10000000 && mantbits < 11000000) ||
+            (mantbits >= 20000000 && mantbits < 21000000))
         {
             return NAN;
         }
@@ -408,6 +410,7 @@ int main(int n, char * args[]) {
     printf("Zero: 0x%.8x \n", asDecimal32(0.0));        // 0
     printf("One: 0x%.8x \n", asDecimal32(+1.0));        // 0x40000000
     printf("Four: 0x%.8x \n", asDecimal32(+4.0));       // 0x42000000
+    printf("Smallest number: 0x%.8x \n", asDecimal32(+1.0e-54));    // 0x00000001
     printf("Minus five dot five: 0x%.8x \n", asDecimal32(-5.5));    // 0xc2e4e1c0
     printf(" 1.0e-47 + 0.123456e-48 = %.8g\n", numberAsDouble32(add32(asDecimal32(1.0e-47), 123456)));
     printf(" 1.0000009 + 1.0000004 = %.8g\n", numberAsDouble32(add32(asDecimal32(1.0000009), asDecimal32(1.0000004))));
