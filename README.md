@@ -63,15 +63,15 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
 
 * __e = 0–13__ and __e = 50–63__
 
-  Decimal numbers in range **1.0e-48** to **9.999,999e-7** for the smaller values of `e`, **1,000,000** to **5e+47** for the larger values of `e`
+  Decimal numbers in range **1.0e-48** to **9.999,999e-7** for smaller `e` values, **1,000,000** to **5e+47** for larger `e` values
 
-  Exponent offset = 48 (smaller `e`) or 16 (larger `e`)
+  Exponent offset = 16 (smaller `e`) or 48 (larger `e`)
 
   Exponent = (_exponent bits_ - _offset_) * 3 + most significant digit of _mantissa bits_
   
   Mantissa = seven least significant digits of _mantissa bits_
   
-  Example:
+  Examples:
   
   ~~~
   Exponent bits: 6
@@ -82,6 +82,16 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   Mantissa = 2,345,678
   
   Number = 2.345,678e-29
+  
+  ~~~
+  Exponent bits: 50
+  Mantissa bits: 3 1000001
+  ~~~
+  
+  Exponent = 6 + 3 = 9\
+  Mantissa = 1,000,001
+  
+  Number = 1.000,001e+9
 
 * __e = 14–49__
 
