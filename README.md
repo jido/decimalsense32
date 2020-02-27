@@ -67,7 +67,7 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
 
   Exponent offset = 16 (smaller `e`) or 48 (larger `e`)
 
-  Exponent = (_exponent bits_ - _offset_) * 3 + most significant digit of _mantissa bits_
+  Exponent = (_exponent bits_ - offset) * 3 + most significant digit of _mantissa bits_
   
   Mantissa = seven least significant digits of _mantissa bits_
   
@@ -78,6 +78,7 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   Mantissa bits: 1 2345678
   ~~~
   
+  _Exponent bits_ - offset = 6 - 16 = -10\
   Exponent = -30 + 1 = -29\
   Mantissa = 2,345,678
   
@@ -88,6 +89,7 @@ The exponent bits dictate how to calculate the exponent and the mantissa.
   Mantissa bits: 3 1000001
   ~~~
   
+  _Exponent bits_ - offset = 50 - 48 = 2\
   Exponent = 6 + 3 = 9\
   Mantissa = 1,000,001
   
